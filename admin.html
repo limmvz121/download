@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MOREZ - Admin Panel</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Plus Jakarta Sans', sans-serif; }
+        .bg-gradient-mesh {
+            background: linear-gradient(135deg, #0f172a, #1e1b4b, #311042);
+            background-size: 400% 400%;
+            animation: gradientMove 15s ease infinite;
+        }
+        @keyframes gradientMove {
+            0% { background-position: 0% 50%; }
+            50% { background-position: 100% 50%; }
+            100% { background-position: 0% 50%; }
+        }
+        .glass {
+            background: rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+    </style>
+</head>
+<body class="bg-gradient-mesh min-h-screen text-white p-4">
+
+    <!-- LOGIN SCREEN -->
+    <div id="loginScreen" class="max-w-md mx-auto mt-20 p-6 glass rounded-2xl shadow-2xl">
+        <h2 class="text-2xl font-bold text-center mb-2">MOREZ Admin</h2>
+        <p class="text-gray-400 text-center text-sm mb-6">Masukkan PIN Akses Admin</p>
+        <input type="password" id="pinInput" placeholder="Masukkan PIN (Default: 1234)" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-3 text-white placeholder-gray-400 focus:outline-none focus:border-indigo-500 mb-4 text-center tracking-widest text-lg">
+        <button onclick="checkPin()" class="w-full bg-gradient-to-r from-indigo-500 to-purple-600 font-semibold py-3 rounded-xl shadow-lg hover:opacity-95 transition">Masuk</button>
+    </div>
+
+    <!-- DASHBOARD PANEL -->
+    <div id="adminPanel" class="max-w-4xl mx-auto hidden pb-12">
+        <div class="flex justify-between items-center mb-6 pt-4">
+            <div>
+                <h1 class="text-2xl font-bold">Admin Panel</h1>
+                <p class="text-gray-400 text-sm">Kelola aplikasi MOREZ langsung dari HP</p>
+            </div>
+            <button onclick="logout()" class="bg-red-500/20 text-red-400 border border-red-500/30 px-4 py-2 rounded-xl text-sm font-semibold">Keluar</button>
+        </div>
+
+        <!-- FORM TAMBAH/EDIT -->
+        <div class="glass p-6 rounded-2xl shadow-xl mb-8">
+            <h2 id="formTitle" class="text-lg font-bold mb-4">Tambah Aplikasi Baru</h2>
+            <input type="hidden" id="editIndex">
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Nama Aplikasi</label>
+                    <input type="text" id="appName" placeholder="Contoh: WhatsApp Pro" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Kategori</label>
+                    <select id="appCategory" class="w-full bg-slate-900 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                        <option value="Game">Game</option>
+                        <option value="Aplikasi Pro">Aplikasi Pro</option>
+                        <option value="Utility">Utility</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Versi</label>
+                    <input type="text" id="appVersion" placeholder="v1.0.0" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Ukuran File</label>
+                    <input type="text" id="appSize" placeholder="45 MB" class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">URL Logo (Gambar)</label>
+                    <input type="text" id="appIcon" placeholder="https://..." class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+                <div>
+                    <label class="block text-xs text-gray-400 mb-1">Link Download</label>
+                    <input type="text" id="appLink" placeholder="https://..." class="w-full bg-white/10 border border-white/20 rounded-xl px-4 py-2 text-sm text-white focus:outline-none focus:border-indigo-500">
+                </div>
+            </div>
+            <div class="flex gap-3 mt-6">
+                <button onclick="saveApp()" class="flex-1 bg-indigo-600 hover:bg-indigo-500 font-semibold py-2.5 rounded-xl text-sm transition shadow-lg">Simpan Data</button>
+                <button onclick="resetForm()" id="cancelBtn" class="hidden bg-white/10 hover:bg-white/20 px-4 py-2.5 rounded-xl text-sm transition">Batal</button>
+            </div>
+        </div>
+
+        <!-- DAFTAR APLIKASI (TABEL) -->
+        <h2 class="text-lg font-bold mb-4">Daftar Aplikasi Tersimpan</h2>
+        <div id="appList" class="space-y-3">
+            <!-- Data akan dimuat otomatis di sini -->
+        </div>
+    </div>
+
+    <!-- Firebase SDK (Ganti dengan config milik Anda) -->
+    <script type="module">
+        import { initializeApp } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-app.js";
+        import { getFirestore, collection, getDocs, addDoc, updateDoc, deleteDoc, doc } from "https://www.gstatic.com/firebasejs/10.8.0/firebase-firestore.js";
+
+        const firebaseConfig = {
+    apiKey: "AIzaSyBYo_GAMxZKC069mDGQM2DCU9Cd2W9nzgI",
+    authDomain: "morez-d529e.firebaseapp.com",
+    projectId: "morez-d529e",
+    storageBucket: "morez-d529e.firebasestorage.app",
+    messagingSenderId: "349096012891",
+    appId: "1:349096012891:web:4987f9cb7cf5083c9c237e",
+    measurementId: "G-L4ELDRJSZG"
+  };
+
+        const app = initializeApp(firebaseConfig);
+        const db = getFirestore(app);
+        const ADMIN_PIN = "4562"; // Ubah PIN sesuai keinginan Anda
+
+        window.checkPin = function() {
+            const pin = document.getElementById('pinInput').value;
+            if(pin === ADMIN_PIN) {
+                document.getElementById('loginScreen').classList.add('hidden');
+                document.getElementById('adminPanel').classList.remove('hidden');
+                loadApps();
+            } else {
+                alert('PIN Salah!');
+            }
+        }
+
+        window.logout = function() {
+            document.getElementById('loginScreen').classList.remove('hidden');
+            document.getElementById('adminPanel').classList.add('hidden');
+            document.getElementById('pinInput').value = '';
+        }
+
+        window.loadApps = async function() {
+            const container = document.getElementById('appList');
+            container.innerHTML = '<p class="text-gray-400 text-center py-4">Memuat data...</p>';
+            
+            try {
+                const querySnapshot = await getDocs(collection(db, "apps"));
+                container.innerHTML = '';
+                
+                if(querySnapshot.empty) {
+                    container.innerHTML = '<p class="text-gray-400 text-center py-4">Belum ada aplikasi.</p>';
+                    return;
+                }
+
+                querySnapshot.forEach((document) => {
+                    const data = document.data();
+                    container.innerHTML += `
+                        <div class="glass p-4 rounded-xl flex items-center justify-between gap-4">
+                            <div class="flex items-center gap-3">
+                                <img src="${data.icon || 'https://via.placeholder.com/50'}" class="w-12 h-12 rounded-xl object-cover bg-white/10" alt="">
+                                <div>
+                                    <h3 class="font-bold text-sm">${data.name}</h3>
+                                    <p class="text-xs text-gray-400">${data.category} • ${data.version} • ${data.size}</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-2">
+                                <button onclick="editApp('${document.id}', '${data.name}', '${data.category}', '${data.version}', '${data.size}', '${data.icon}', '${data.link}')" class="bg-amber-500/20 text-amber-400 px-3 py-1.5 rounded-lg text-xs font-semibold">Edit</button>
+                                <button onclick="deleteApp('${document.id}')" class="bg-red-500/20 text-red-400 px-3 py-1.5 rounded-lg text-xs font-semibold">Hapus</button>
+                            </div>
+                        </div>
+                    `;
+                });
+            } catch (e) {
+                console.error(e);
+                container.innerHTML = '<p class="text-red-400 text-center py-4">Gagal memuat database. Periksa konfigurasi Firebase Anda.</p>';
+            }
+        }
+
+        window.saveApp = async function() {
+            const id = document.getElementById('editIndex').value;
+            const name = document.getElementById('appName').value;
+            const category = document.getElementById('appCategory').value;
+            const version = document.getElementById('appVersion').value;
+            const size = document.getElementById('appSize').value;
+            const icon = document.getElementById('appIcon').value;
+            const link = document.getElementById('appLink').value;
+
+            if(!name || !link) {
+                alert('Nama dan Link Download wajib diisi!');
+                return;
+            }
+
+            const appData = { name, category, version, size, icon, link };
+
+            try {
+                if(id) {
+                    await updateDoc(doc(db, "apps", id), appData);
+                    alert('Berhasil memperbarui aplikasi!');
+                } else {
+                    await addDoc(collection(db, "apps"), appData);
+                    alert('Berhasil menambah aplikasi baru!');
+                }
+                resetForm();
+                loadApps();
+            } catch (e) {
+                alert('Terjadi kesalahan: ' + e.message);
+            }
+        }
+
+        window.editApp = function(id, name, category, version, size, icon, link) {
+            document.getElementById('editIndex').value = id;
+            document.getElementById('appName').value = name;
+            document.getElementById('appCategory').value = category;
+            document.getElementById('appVersion').value = version;
+            document.getElementById('appSize').value = size;
+            document.getElementById('appIcon').value = icon;
+            document.getElementById('appLink').value = link;
+            document.getElementById('formTitle').innerText = "Edit Aplikasi";
+            document.getElementById('cancelBtn').classList.remove('hidden');
+            window.scrollTo({top: 0, behavior: 'smooth'});
+        }
+
+        window.resetForm = function() {
+            document.getElementById('editIndex').value = '';
+            document.getElementById('appName').value = '';
+            document.getElementById('appVersion').value = '';
+            document.getElementById('appSize').value = '';
+            document.getElementById('appIcon').value = '';
+            document.getElementById('appLink').value = '';
+            document.getElementById('formTitle').innerText = "Tambah Aplikasi Baru";
+            document.getElementById('cancelBtn').classList.add('hidden');
+        }
+
+        window.deleteApp = async function(id) {
+            if(confirm('Yakin ingin menghapus aplikasi ini?')) {
+                try {
+                    await deleteDoc(doc(db, "apps", id));
+                    loadApps();
+                } catch (e) {
+                    alert('Gagal menghapus: ' + e.message);
+                }
+            }
+        }
+    </script>
+</body>
+</html>
